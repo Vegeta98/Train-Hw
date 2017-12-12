@@ -1,1 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <title>Document</title>
+    <!-- linking JQery  -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <!-- linking firebase -->
+    <script src="https://www.gstatic.com/firebasejs/4.8.0/firebase.js"></script>
+    <!-- Moment.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.7.0/moment.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+        crossorigin="anonymous">
+    <!-- linking css -->
+
+
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="jumbotron text-center">
+            <h1>Trains</h1>
+        </div>
+
+        <div id="wrapper">
+            <div class="panel panel-primary">
+                <div class="panel-heading">Train Schedule</div>
+                <div class="panel-body">
+
+                    <table class="table table-hover" id="employees">
+                        <thead>
+                            <tr>
+                                <th>train Name</th>
+                                <th>Destination</th>
+                                <th>Frequency (min)</th>
+                                <th>Next Arrival</th>
+                                <th>Minutes Away</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <br>
+
+        <div class="wrapper">
+            <div class="panel panel-primary">
+                <div class="panel-heading">Add Train</div>
+                <div class="panel-body">
+
+                    <form>
+                        <div class="form-group">
+                            <label class="col-form-label" for="formGroupExampleInput">Train Name</label>
+                            <input type="text" class="form-control" id="trainName" placeholder="Train Name">
+                        </div>
+                        <div class="form-group">
+                            <label class="col-form-label" for="formGroupExampleInput2">Destination</label>
+                            <input type="text" class="form-control" id="destination" placeholder="Where to">
+                        </div>
+                        <div class="form-group">
+                            <label class="col-form-label" for="formGroupExampleInput">First Train Time (HH:mm - Military time)</label>
+                            <input type="text" class="form-control" id="firstTrain" placeholder="">
+                        </div>
+                        <div class="form-group">
+                            <label class="col-form-label" for="formGroupExampleInput2">Frequency (min)</label>
+                            <input type="text" class="form-control" id="frequency" placeholder="">
+                        </div>
+                    </form>
+                    <button id="add-user" class="btn btn-primary" href="#">submit</button>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- linking app.js -->
+    <script src="https://www.gstatic.com/firebasejs/4.8.0/firebase.js"></script>
+    <script>
+
+        var config = {
+    apiKey: "AIzaSyAcoOQZgjWo4ejrmT8EibFbDEh5iO8kMnA",
+    authDomain: "train-homework-16f73.firebaseapp.com",
+    databaseURL: "https://train-homework-16f73.firebaseio.com",
+    projectId: "train-homework-16f73",
+    storageBucket: "",
+    messagingSenderId: "231095270026"
+};
+firebase.initializeApp(config);
+
+var database = firebase.database();
+
+// Initial variables
+var name = "";
+var dest = "";
+var first = "";
+var freq = "";
+
+// Capture Button Click
+$("#add-user").on("click", function (event) {
+    event.preventDefault();
+
+    // Grabbed values from text-boxes
+    name = $("#trainName").val().trim();
+    dest = $("#destination").val().trim();
+    first = $("#firstTrain").val().trim();
+    freq = $("#frequency").val().trim();
+
+    // Code for "Setting values in the database"
+    database.ref().push({
+        name: name,
+        dest: dest,
+        first: first,
+        freq: freq,
+        dateAdded: firebase.database.ServerValue.TIMESTAMP
+    });
+});
+
+//clear input field on click
+    $("input").focus(function () {
+        if ($(this).val() !== '') {
+            $(this).val('');
+        }
+    });
+
+// Add them to the HTML in our table
+database.ref().on("child_added", function (childSnapshot) {
+
+    // Log everything that's coming out of snapshot
+    console.log(childSnapshot.val().name);
+    console.log(childSnapshot.val().dest);
+    console.log(childSnapshot.val().first);
+    console.log(childSnapshot.val().freq);
+    
+// New Calculated Variables
+   var minutesAway = minTillTrain(childSnapshot.val().freq, childSnapshot.val().first);
+   var nextArrival = nextTrain(minutesAway);
+
+      // Change the HTML to reflect
+  var newTr = $("<tr>")
+  newTr.append("<td>" + childSnapshot.val().name + "</td>");
+  newTr.append("<td>" + childSnapshot.val().dest + "</td>");
+  newTr.append("<td>" + childSnapshot.val().freq + "</td>");
+  newTr.append("<td>" + nextArrival + "</td>");
+  newTr.append("<td>" + minutesAway + "</td>");
+  $("tbody").append(newTr);
+
+
+ // Below are both time calculating functions. Note that both must be inside the database.ref() for them to work. 
+  
+ // Minutes Away Function
+function minTillTrain (tFrequency, firstTime) {
+    
+    var firstTimeConverted = moment(firstTime, "hh:mm").subtract(1, "years");
+    var currentTime = moment();
+    var diffTime = moment().diff(moment(firstTimeConverted), "minutes");
+    var tRemainder = diffTime % tFrequency;
+    var tMinutesTillTrain = tFrequency - tRemainder;
+    return tMinutesTillTrain;
+    }
+    
+    // Next Arrival Function
+    function nextTrain (tMinutesTillTrain) {
+        var nextTrain = moment().add(tMinutesTillTrain, "minutes")
+        return moment(nextTrain).format("hh:mm");
+    }
+    
+    
+
+   
+});
+    
+    </script>
+
+
+</body>
+
+</html>
